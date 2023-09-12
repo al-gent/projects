@@ -1,54 +1,97 @@
 import random
-
 class Board:
-    def __init__(self, h=3, w=3):
+    """Represents a game board."""
+    def __init__(self, h=6, w=7, c=4):
         self.h = h
         self.w = w
-        self.board = [[1,2,3],[4,5,6],[7,8,9]]
-        next_door = {1:[2,4], 2:[1,3,5], 3:[2,6], 4:[1,5,7], 5:[2,4,6,8], 6:[3,5,9], 7:[4,8], 8:[5,7,9], 9:[6,8]}
-        #make flexible board size
-        #self.board = [[i for i in range(w)] for _ in range(h)]
-        self.choices = []
-        for row in self.board:
-            for i in row:
-                if type(i) == int:
-                    self.choices.append(i)
-        self.side = [2,4,6,8]
-        self.corners = [1,3,7,9]
-        self.center = [5]
-        
-    def print_board(self):
+        self.c = c
+        self.board = [[i+(w*j)+1 for i in range(w)] for j in range(h)]
+        board = self.board
+        self.diags = [board[i][i] for i in range(h)], [board[i][-i-1] for i in range(h)]
+        self.corners = [board[0][0], board[0][-1], board[-1][0], board[-1][-1]]
+        self.center = [[item for item in row if item != row[0] and item !=row[w-1]] for row in board if row!= board[0] and row!=board[h-1]]
+        self.choices = [i for row in board for i in row if type(i) == int]
+
+    def update(self, num, player):
+        """takes an int and updates gameboard with the players choice"""
+        x,y = self.num_to_coord(num)
+        print(num)
+        self.board[x][y] = player
+        self.choices = [i for row in self.board for i in row if type(i) == int]
+
+    def render(self):
         for row in self.board:
             print(row)
             
-class Game_manager:
-    def __init__(self, board, player):
+    def good_input(self, num):
+        """Return True if x is an open position on the game board"""
+        return num in self.choices
+            
+    def num_to_coord(self, num):
+        return num // self.h, (num% self.w)
+    
+    def get_human_choice(self, player):
+        """Recieve number coordinate from player
+        returns number coordinate"""
+        num = input(player + " is up. Enter board position: ")
+        num = int(num)
+        if self.good_input(num):
+            return num -1
+        else:
+            print("Invalid input: try again")
+            self.get_human_choice(player)
+
+class Game:
+    """ Takes Board object as input.
+    Keeps score, checks for wins & draws, runs computer player"""
+    def __init__(self, board):
         self.board = board
-        self.player = player
-        self.player2 = 'X' if player == 'O' else 'O'
-        self.moves = []
+        
+        
+    def go(self, player, symbol):
+        """One turn of the Game. Accepts player and symbol as argument
+        renders board, updates board, checks for win or draw
+        """
+        
+        b = self.board
+        b.render()
+        if player == 'H':
+            num = b.get_human_choice(symbol)
+        if player == 'random':
+            num = Opponent(b).random()-1
+        b.update(num, symbol)
 
-    def good_input(x):
-        if x not in '123456789':
-            return False
-        return 0 < int(x) < 10
-
-    def num_to_coord(num):
-        x = (num%3)-1
-        if 0 < num < 4:
-            y = 0
-        elif 3 < num < 7:
-            y = 1
-        elif 6 < num < 10:
-            y = 2
-        return (x,y)
-
-
+     
+    def play(self, p1='random', p2='H'):
+        """ Accepts Humans('H'), or CPUs('random')('smart') as P1, P2
+        Run the play sequence, take turns, check for winners, check for draws"""
+        b = self.board
+        while True:
+            self.go(p1, 'X')
+            if self.check_win():
+                print('X wins!')
+                b.render()
+                break
+            if self.check_cats():
+                print('Cats Game')
+                break
+            self.go(p2, 'O')
+            if self.check_win():
+                print('O wins!')
+                b.render()
+                break
+            if self.check_cats():
+                print('Cats Game')
+                break
+            
+        
     def check_win(self):
+        """Return True if a player has won"""
+        board = self.board.board
         #win across
         for row in board:
             if row[0] == row[1] == row[2]:
-                return True 
+                return True
         #win up/down
         cols = [[row[i] for row in board] for i in range(3)]
         for col in cols:
@@ -60,8 +103,10 @@ class Game_manager:
             if diag[0] == diag[1] == diag[2]:
                 return True
 
-    def check_cats():
-        cats_count = 8
+    def check_cats(self):
+        """Return True if the game is draw"""
+        board = self.board.board
+        cats_count = 7
         for row in board:
             if "X" in row and "O" in row:
                 cats_count -= 1
@@ -74,157 +119,20 @@ class Game_manager:
             if "X" in diag and "O" in diag:
                 cats_count -= 1
         return cats_count == 0
-    
-    def winning_move(board, player):
-        for row in board:
-            count = 0
-            for i in row:
-                if i == player:
-                    count += 1
-            if count == 2:
-                for i in row:
-                    if type(i) == int:
-                        num = i
-                        x,y = num_to_coord(num)
-                        board[y][x] = player
-                        break
-        cols = [[row[i] for row in board] for i in range(3)]
-        for col in cols:
-            count = 0
-            for i in col:
-                if i == player:
-                    count += 1
-            if count == 2:
-                for i in col:
-                    if type(i) == int:
-                        num = i
-                        x,y = num_to_coord(num)
-                        board[y][x] = player
-                        break
-        diags = [[board[0][0], board[1][1], board[2][2]], [board[2][0],board[1][1],board[0][2]]]
-        for diag in diags:
-            count = 0
-            for i in diag:
-                if i == player:
-                    count += 1
-            if count == 2:
-                for i in diag:
-                    if type(i) == int:
-                        num = i
-                        x,y = num_to_coord(num)
-                        board[y][x] = player
-                        break
-
-class Human:
-    def __init__(self):
-        pass
-    def go(board, player):
-        num = input(player+ " is up. Enter board position: ")
-        if good_input(num):
-            num = int(num)
-        else:
-            print("Invalid input: try again")
-            next_turn(player, board)
-        x,y = num_to_coord(num)
-        if type(board[y][x]) == str:
-            print('Seats taken - lose a turn.')
-            return 
-        board[y][x] = str(player)
-        return num
 
 class Opponent:
-    def __init__(self):
-        self.board = Board()
-        pass
-    
-    def go(board, player, moves):
-        board = Board.board
-        choices = []
-        care = True
-        for row in board:
-            for i in row:
-                if type(i) == int:
-                    choices.append(i)
-        side = [2,4,6,8]
-        corners = [1,3,7,9]
-        center = [5]
-        #going first
-        if len(choices) == 9:
-            num = random.choice(side)
-            x,y = num_to_coord(num)
-            board[y][x] = player
-            print('num:', num)
-            return num
-        if len(choices) == 7:
-            if 5 in choices:
-                num = 5
-                return num
-            else:
-                num = random.choice(corners)
-                care = False
-                x,y = num_to_coord(num)
-                board[y][x] = player
-                return num
-        if len(choices) == 5:
-            if care:
-                num = random.choice(next_door[moves[0]])
-                x,y = num_to_coord(num)
-                board[y][x] = player
-                return num
-            else:
-                print('I dont care')
-                num = random.choice(choices)
-                x,y = num_to_coord(num)
-                board[y][x] = player
-                return num
-        if len(choices) == 3:
-            if care:
-                winning_move(board, player)
-                return num
-                
-            else:
-                num = random.choice(choices)
-                x,y = num_to_coord(num)
-                board[y][x] = player
-                return num
-        if len(choices) == 1:
-            num = random.choice(choices)
-            x,y = num_to_coord(num)
-            board[y][x] = player
-            return num
-            
-
-def smart_play(board, player):
-    moves =[]
-    if player == 'X':
-        player2 = 'O'
-    else:
-        player2 = 'X'
-    while True:
+    """A computer opponent"""
+    def __init__(self, board):
+        self.Board = board
         
-        move = opponent.go(board, player, moves)
-        moves.append(move)
-        print('moves:',moves)
-        for row in board:
-            print(row) 
-        if game_manager.check_win():
-            for row in board:
-                print(row) 
-            print('You Lose! Loser!')
-            break
-        if game_manager.check_cats():
-            print('Cats Game')
-            break
-        moves.append(human.go(board, player2))
-        if game_manager.check_win():
-            for row in board:
-                print(row) 
-            print('You win!')
-            break
-        if game_manager.check_cats():
-            print('Cats Game')
-            break
+    def random(self):
+        return random.choice(self.Board.choices)
+    
+    def smart(self):
+        
+    
 
 
-smart_play(Board.board, 'O')
+g = Game(Board(4,4))
 
+g.play('random','random')
